@@ -1,0 +1,36 @@
+// api/generate.js
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  try {
+    const { prompt } = req.body;
+
+    if (!prompt) {
+      return res.status(400).json({ error: "Prompt is required" });
+    }
+
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+    // Use Gemini image model
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash-preview-image-generation",
+    });
+
+    const result = await model.generateContent(prompt);
+    const imageData = result.response.candidates[0].content.parts[0].inline_data;
+
+    if (!imageData) {
+      return res.status(500).json({ error: "No image returned from API" });
+    }
+
+    res.setHeader("Content-Type", imageData.mime_type);
+    res.send(Buffer.from(imageData.data, "base64"));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
+  }
+}
